@@ -57,8 +57,6 @@ x-shared-api-worker-config: &shared-api-worker-config
       required: false
     - path: ./envs/infrastructure/certbot.env
       required: false
-    - path: ./envs/infrastructure/ssrf-proxy.env
-      required: false
     - path: ./envs/infrastructure/etcd.env
       required: false
     - path: ./envs/infrastructure/minio.env
@@ -67,7 +65,7 @@ x-shared-api-worker-config: &shared-api-worker-config
       required: false
     - ./.env
   networks:
-    - ssrf_proxy_network
+    
     - default
   restart: always
 
@@ -123,8 +121,6 @@ x-shared-worker-config: &shared-worker-config
       required: false
     - path: ./envs/infrastructure/certbot.env
       required: false
-    - path: ./envs/infrastructure/ssrf-proxy.env
-      required: false
     - path: ./envs/infrastructure/etcd.env
       required: false
     - path: ./envs/infrastructure/minio.env
@@ -133,7 +129,6 @@ x-shared-worker-config: &shared-worker-config
       required: false
     - ./.env
   networks:
-    - ssrf_proxy_network
     - default
   restart: always
 
@@ -189,8 +184,6 @@ x-shared-worker-beat-config: &shared-worker-beat-config
       required: false
     - path: ./envs/infrastructure/certbot.env
       required: false
-    - path: ./envs/infrastructure/ssrf-proxy.env
-      required: false
     - path: ./envs/infrastructure/etcd.env
       required: false
     - path: ./envs/infrastructure/minio.env
@@ -199,7 +192,6 @@ x-shared-worker-beat-config: &shared-worker-beat-config
       required: false
     - ./.env
   networks:
-    - ssrf_proxy_network
     - default
   restart: always
 
@@ -264,7 +256,6 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - ssrf_proxy_network
       - default
 
   # WebSocket service for workflow collaboration.
@@ -289,7 +280,6 @@ services:
       redis:
         condition: service_started
     networks:
-      - ssrf_proxy_network
       - default
 
   # worker service
@@ -332,7 +322,6 @@ services:
       start_period: 60s
       disable: ${COMPOSE_WORKER_HEALTHCHECK_DISABLED:-true}
     networks:
-      - ssrf_proxy_network
       - default
 
   # worker_beat service
@@ -367,7 +356,6 @@ services:
       start_period: 60s
       disable: ${COMPOSE_WORKER_HEALTHCHECK_DISABLED:-true}
     networks:
-      - ssrf_proxy_network
       - default
 
   # Frontend web application.
@@ -511,8 +499,6 @@ services:
       GIN_MODE: ${SANDBOX_GIN_MODE:-release}
       WORKER_TIMEOUT: ${SANDBOX_WORKER_TIMEOUT:-15}
       ENABLE_NETWORK: ${SANDBOX_ENABLE_NETWORK:-true}
-      HTTP_PROXY: ${SANDBOX_HTTP_PROXY:-http://ssrf_proxy:3128}
-      HTTPS_PROXY: ${SANDBOX_HTTPS_PROXY:-http://ssrf_proxy:3128}
       SANDBOX_PORT: ${SANDBOX_PORT:-8194}
       PIP_MIRROR_URL: ${PIP_MIRROR_URL:-}
     volumes:
@@ -521,7 +507,6 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8194/health"]
     networks:
-      - ssrf_proxy_network
 
   # plugin daemon
   plugin_daemon:
@@ -542,7 +527,6 @@ services:
         required: false
       - ./.env
     networks:
-      - ssrf_proxy_network
       - default
     environment:
       DB_DATABASE: ${DB_PLUGIN_DATABASE:-dify_plugin}
@@ -613,30 +597,7 @@ services:
   # ssrf_proxy server
   # for more information, please refer to
   # https://docs.dify.ai/learn-more/faq/install-faq#18-why-is-ssrf-proxy-needed%3F
-  ssrf_proxy:
-    image: ubuntu/squid:latest
-    restart: always
-    volumes:
-      - ./ssrf_proxy/squid.conf.template:/etc/squid/squid.conf.template
-      - ./ssrf_proxy/docker-entrypoint.sh:/docker-entrypoint-mount.sh
-    entrypoint:
-      [
-        "sh",
-        "-c",
-        "cp /docker-entrypoint-mount.sh /docker-entrypoint.sh && sed -i 's/\r$$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh && /docker-entrypoint.sh",
-      ]
-    environment:
-      # pls clearly modify the squid env vars to fit your network environment.
-      HTTP_PORT: ${SSRF_HTTP_PORT:-3128}
-      COREDUMP_DIR: ${SSRF_COREDUMP_DIR:-/var/spool/squid}
-      REVERSE_PROXY_PORT: ${SSRF_REVERSE_PROXY_PORT:-8194}
-      SANDBOX_HOST: ${SSRF_SANDBOX_HOST:-sandbox}
-      SANDBOX_PORT: ${SANDBOX_PORT:-8194}
-    networks:
-      - ssrf_proxy_network
-      - default
-
-  # Certbot service
+    # Certbot service
   # use `docker-compose --profile certbot up` to start the certbot service.
   certbot:
     image: certbot/certbot
@@ -1188,9 +1149,6 @@ services:
 
 networks:
   # create a network between sandbox, api and ssrf_proxy, and can not access outside.
-  ssrf_proxy_network:
-    driver: bridge
-    internal: true
   milvus:
     driver: bridge
   opensearch-net:
